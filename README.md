@@ -33,7 +33,7 @@ The content was produced with Claude using prompts that were short, specific and
 1. **Anchor to the outline.** Ask for questions per skill area from the official outline, with the target share of each, so coverage matches the exam instead of drifting toward easy topics.
 2. **Set the rules up front.** Write original questions, no real exam items, four options, one or two correct answers, and an explanation that also rules out the nearest wrong option.
 3. **Demand a fixed schema.** Each item is `{ d, s, q, o, a, e }` so the output drops straight into the app and can be validated by a script.
-4. **Verify, then regenerate.** A script checks that every question has four options and valid answer indexes. Facts that tend to go stale (weights, tier names, SLA maths) were re-checked against Microsoft Learn.
+4. **Verify, then regenerate.** A script checks that every question has four options and valid answer indexes. Facts that go stale quickly (skill area weights, service names) should be re-checked on Microsoft Learn before you rely on them.
 5. **Ask for comparisons, not definitions.** Flashcards pair a definition with an everyday comparison because that is what helps recall.
 
 Example prompt:
