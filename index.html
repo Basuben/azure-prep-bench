@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Azure Prep Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: one working column. A readiness strip sits on top, a tabbed workspace below it, and the quiz view pins its timer to the top. */
+:root {
+  color-scheme: light;
+  --bg: #d6ebff;
+  --surface: #eef7ff;
+  --fg: #0b2a4a;
+  --muted: #3f6285;
+  --line: #a9cdee;
+  --accent: #1478d4;
+  --accent-ink: #ffffff;
+  --accent-soft: #bfe0fb;
+  --good: #14693f;
+  --good-soft: #cdeedd;
+  --bad: #a52d18;
+  --bad-soft: #f7dcd6;
+  --warn: #7a4e00;
+  --warn-soft: #fbeac4;
+  --f-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --f-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.55;
+  padding-block: 28px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 2.1rem; font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: 1.35rem; font-weight: 600; }
+h3 { font-size: 1.02rem; font-weight: 600; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--f-mono); }
+.label { font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header { display: flex; flex-direction: column; gap: 8px; }
+.titlerow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.badge { font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 9px; border: 1px solid var(--warn); color: var(--warn); border-radius: 4px; }
+.sub { color: var(--muted); max-width: 64ch; }
+.notice { font-size: 0.85rem; color: var(--warn); background: var(--warn-soft); padding: 8px 12px; border-radius: 6px; max-width: 74ch; }
+
+.strip { display: grid; grid-template-columns: 1.2fr 1fr 1.3fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.strip > div { background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.big { font-family: var(--f-display); font-weight: 800; font-size: 2rem; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.tag { font-family: var(--f-mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; background: var(--warn-soft); color: var(--warn); }
+
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.tab { font: inherit; font-weight: 500; background: none; border: 0; color: var(--muted); padding: 10px 14px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; border-radius: 6px 6px 0 0; }
+.tab:hover { color: var(--fg); }
+.tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.head { display: flex; flex-direction: column; gap: 6px; }
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field label { font-size: 0.82rem; font-weight: 600; }
+select, input[type="date"], input[type="number"] { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
+select:disabled { opacity: 0.55; }
+.btn { font: inherit; font-weight: 600; border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.07); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--surface); padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.timer { font-family: var(--f-mono); font-size: 1.15rem; font-weight: 500; font-variant-numeric: tabular-nums; padding: 4px 12px; border-radius: 6px; background: var(--accent-soft); }
+.timer.low { background: var(--bad-soft); color: var(--bad); }
+.chip { font-size: 0.78rem; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.progress { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); }
+.qtext { font-size: 1.25rem; max-width: 62ch; }
+.hint { font-family: var(--f-mono); font-size: 0.8rem; color: var(--accent); }
+.opts { display: flex; flex-direction: column; gap: 10px; }
+.opt { display: flex; gap: 12px; align-items: flex-start; text-align: left; font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); padding: 12px 14px; border-radius: 10px; cursor: pointer; width: 100%; }
+.opt:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.opt .k { font-family: var(--f-mono); font-size: 0.8rem; width: 24px; height: 24px; flex: none; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); }
+.opt.sel { border-color: var(--accent); background: var(--accent-soft); }
+.opt.sel .k { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.opt.good { border-color: var(--good); background: var(--good-soft); }
+.opt.good .k { background: var(--good); color: var(--surface); border-color: var(--good); }
+.opt.bad { border-color: var(--bad); background: var(--bad-soft); }
+.opt.bad .k { background: var(--bad); color: var(--surface); border-color: var(--bad); }
+.opt:disabled { cursor: default; }
+.opt.dim { opacity: 0.6; }
+.fb { border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.fb.good { background: var(--good-soft); }
+.fb.bad { background: var(--bad-soft); }
+.fb strong { font-family: var(--f-display); font-size: 1.05rem; }
+.kbd { font-size: 0.8rem; color: var(--muted); }
+
+.score { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.verdict { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; }
+.verdict.good { background: var(--good-soft); color: var(--good); }
+.verdict.warn { background: var(--warn-soft); color: var(--warn); }
+.verdict.bad { background: var(--bad-soft); color: var(--bad); }
+.list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.list li { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+
+.areas { display: flex; flex-direction: column; gap: 14px; }
+.area { display: grid; grid-template-columns: minmax(150px, 230px) 1fr 130px; gap: 14px; align-items: center; }
+.area .nm { display: flex; flex-direction: column; }
+.track { position: relative; height: 12px; background: var(--bg); border-radius: 6px; }
+.track i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: var(--accent); }
+.track i.good { background: var(--good); }
+.track i.warn { background: var(--warn); }
+.track i.bad { background: var(--bad); }
+.track .mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--fg); opacity: 0.5; }
+.num { font-family: var(--f-mono); font-size: 0.82rem; text-align: right; font-variant-numeric: tabular-nums; }
+.empty { border: 1px dashed var(--line); border-radius: 10px; padding: 14px 16px; color: var(--muted); }
+.sessions { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.sessions li { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; font-size: 0.9rem; }
+
+.deckhead { display: flex; justify-content: space-between; gap: 12px; align-items: end; flex-wrap: wrap; }
+.card { font: inherit; text-align: left; color: var(--fg); background: var(--bg); border: 1px dashed var(--muted); border-radius: 14px; padding: 28px 24px; min-height: 210px; display: flex; flex-direction: column; justify-content: center; gap: 12px; cursor: pointer; width: 100%; }
+.card .term { font-family: var(--f-display); font-weight: 800; font-size: 1.9rem; letter-spacing: -0.02em; text-wrap: balance; }
+.card .def { font-size: 1.1rem; max-width: 56ch; }
+.card .an { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; max-width: 56ch; }
+.card.back { border-style: solid; border-color: var(--accent); background: var(--surface); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 0.9rem; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+.weeks { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.week { display: grid; grid-template-columns: 150px 1fr; gap: 16px; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.week.final { border-color: var(--accent); background: var(--accent-soft); }
+.week.finished { opacity: 0.65; }
+.week .when { display: flex; flex-direction: column; gap: 2px; }
+.week ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.weak-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; }
+.err { color: var(--bad); }
+
+.revisit { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.revisit li { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: baseline; border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
+.checks { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.checks li { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.hist { display: flex; align-items: flex-end; gap: 10px; height: 130px; padding-top: 10px; border-bottom: 1px solid var(--line); }
+.hist div { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; height: 100%; }
+.hist i { display: block; width: 100%; max-width: 44px; background: var(--accent); border-radius: 4px 4px 0 0; }
+.hist i.m { background: var(--fg); opacity: 0.75; }
+.hist span { font-family: var(--f-mono); font-size: 0.7rem; color: var(--muted); }
+.histlabels { display: flex; gap: 10px; }
+.histlabels span { flex: 1; text-align: center; font-family: var(--f-mono); font-size: 0.68rem; color: var(--muted); }
+footer { font-size: 0.8rem; color: var(--muted); max-width: 74ch; }
+
+@media (max-width: 640px) {
+  h1 { font-size: 1.7rem; }
+  .strip { grid-template-columns: 1fr; }
+  .panel { padding: 16px; }
+  .week { grid-template-columns: 1fr; gap: 6px; }
+  .area { grid-template-columns: 1fr 100px; }
+  .area .track { grid-column: 1 / -1; order: 3; }
+  .card .term { font-size: 1.5rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .progress i, .track i, .hist i { transition: width 0.3s ease, height 0.3s ease; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="titlerow">
+      <h1>Azure Prep Bench</h1>
+      <span class="badge">Unofficial</span>
+    </div>
+    <p class="sub">Study for Azure fundamentals with exam-style quizzes, a timed mock, flashcards, a revision planner and a readiness check built from your own answers.</p>
+    <p class="notice">Unofficial study aid. Not affiliated with or endorsed by Microsoft. All questions and cards are original practice material and none come from a real exam.</p>
+  </header>
+
+  <section id="strip" class="strip" aria-live="polite"></section>
+
+  <nav class="tabs" role="tablist" aria-label="Study tools">
+    <button class="tab" role="tab" data-tab="quiz" aria-selected="true">Quiz</button>
+    <button class="tab" role="tab" data-tab="cards" aria-selected="false">Flashcards</button>
+    <button class="tab" role="tab" data-tab="plan" aria-selected="false">Study plan</button>
+    <button class="tab" role="tab" data-tab="ready" aria-selected="false">Readiness</button>
+  </nav>
+
+  <main id="panel" class="panel"></main>
+
+  <footer>Progress stays in this browser only. The 70% line is a practice target because the real exam uses scaled scoring. Skill area weights change over time, so confirm them on the official exam page before you book.</footer>
+</div>
+
+<script>
+(function () {
+  var DOMAINS = [
+    { id: 'cloud', name: 'Cloud concepts', weight: '25 to 30%', w: 0.28 },
+    { id: 'arch', name: 'Azure architecture and services', weight: '35 to 40%', w: 0.38 },
+    { id: 'mgmt', name: 'Azure management and governance', weight: '30 to 35%', w: 0.34 }
+  ];
+
+  var QUESTIONS = [
+    { d: 'cloud', s: 'Shared responsibility', q: "Whatever cloud service model you choose, which item always stays your responsibility?", o: ["Physical datacenter security", "Information and data", "Host hardware replacement", "Network cabling"], a: [1], e: "Information and data, along with accounts, identities and devices, stay with the customer in every service model. Physical facilities, hosts and cabling belong to the provider." },
+    { d: 'cloud', s: 'Shared responsibility', q: "In a platform as a service deployment, who patches the underlying operating system?", o: ["The cloud provider", "The customer", "A third-party auditor", "No one, patching is not needed"], a: [0], e: "With PaaS the provider manages the operating system and runtime. Patching the guest operating system is the customer's job only with infrastructure as a service." },
+    { d: 'cloud', s: 'Service models', q: "Which service model gives the customer the most control over the operating system and installed software?", o: ["Software as a service", "Platform as a service", "Infrastructure as a service", "Serverless"], a: [2], e: "IaaS rents you virtual machines, storage and networking, so you control everything from the guest operating system upward." },
+    { d: 'cloud', s: 'Service models', q: "A company subscribes to a hosted email and calendar service that the vendor manages completely. Which model is this?", o: ["Infrastructure as a service", "Platform as a service", "Software as a service", "Hybrid cloud"], a: [2], e: "A finished application delivered over the internet and run by the vendor is software as a service." },
+    { d: 'cloud', s: 'Pricing models', q: "Which statement best describes consumption-based pricing?", o: ["You pay a fixed annual fee regardless of use", "You pay only for the resources you use", "You buy hardware and depreciate it", "You prepay three years to get access"], a: [1], e: "Consumption-based pricing charges for what you actually use, so there is no up-front purchase and no payment for idle capacity you never ran." },
+    { d: 'cloud', s: 'CapEx and OpEx', q: "Which of these is an example of capital expenditure?", o: ["A monthly bill for virtual machines", "Buying physical servers for an on-premises datacenter", "Per-execution charges for serverless functions", "Pay-as-you-go storage charges"], a: [1], e: "Capital expenditure is an up-front spend on assets you own, such as servers. The other options are operational expenditure because they are billed as you consume." },
+    { d: 'cloud', s: 'Scalability', q: "A web app is slow, so you resize its virtual machine to one with more CPU and memory. What type of scaling is this?", o: ["Scaling out", "Scaling in", "Scaling up (vertical scaling)", "Geo-replication"], a: [2], e: "Giving one machine more CPU or memory is vertical scaling, or scaling up. Scaling out adds more instances instead." },
+    { d: 'cloud', s: 'Scalability', q: "Adding more instances of a web server behind a load balancer to share traffic is an example of what?", o: ["Vertical scaling", "Horizontal scaling", "Resource locking", "Cost allocation"], a: [1], e: "Adding instances is horizontal scaling, also called scaling out. Vertical scaling makes a single instance bigger." },
+    { d: 'cloud', s: 'Elasticity', q: "An online store's resources increase automatically during a flash sale and shrink again afterward. Which cloud benefit is this?", o: ["Elasticity", "Governance", "Data sovereignty", "Manageability"], a: [0], e: "Elasticity is the ability to add and remove resources automatically as demand changes." },
+    { d: 'cloud', s: 'Reliability', q: "An application keeps running after one datacenter in a region loses power, because it was deployed across several availability zones. Which benefit does this show?", o: ["Reliability", "Predictability", "Economies of scale", "Consumption pricing"], a: [0], e: "Reliability is the ability to recover from failures and keep working. Spreading a workload across zones is a common way to get it." },
+    { d: 'cloud', s: 'Predictability', q: "A team uses cost forecasts and autoscale rules so its monthly bill and application performance stay steady. Which benefit is this?", o: ["Predictability", "Agility", "Latency", "Interoperability"], a: [0], e: "Predictability covers both cost, through forecasting and budgets, and performance, through autoscale and load balancing." },
+    { d: 'cloud', s: 'Governance', q: "Enforcing standards such as approved regions and required tags across all cloud resources supports which cloud benefit?", o: ["Governance", "Elasticity", "Agility", "Disaster recovery"], a: [0], e: "Governance is about applying corporate standards and compliance rules to resources, for example with policies and templates." },
+    { d: 'cloud', s: 'Economies of scale', q: "Why can a cloud provider often offer lower per-unit prices than a single company building its own datacenter?", o: ["Economies of scale", "Higher latency", "Reduced security", "Manual provisioning"], a: [0], e: "A provider buys hardware, power and space in huge volume and spreads the savings across many customers." },
+    { d: 'cloud', s: 'SLA', q: "An application needs a web app (SLA 99.95%) and a database (SLA 99.99%) to both be available. What is the approximate composite SLA?", o: ["99.99%", "99.95%", "99.94%", "99.90%"], a: [2], e: "Multiply the two availabilities: 0.9995 times 0.9999 is about 0.9994, or 99.94%. Depending on several services always gives a composite SLA lower than the weakest single SLA." },
+    { d: 'cloud', s: 'Cloud models', q: "A government agency runs cloud technology only for its own use, in its own datacenter. Which deployment model is this?", o: ["Public cloud", "Private cloud", "Hybrid cloud", "Multi-cloud"], a: [1], e: "A private cloud serves a single organization and is usually hosted in its own datacenter." },
+    { d: 'cloud', s: 'Cloud models', q: "A company runs some workloads in Azure and others with a different public cloud provider. What is this approach called?", o: ["Hybrid cloud", "Private cloud", "Multi-cloud", "Colocation"], a: [2], e: "Using more than one public cloud provider is multi-cloud. Hybrid means mixing on-premises or private resources with public cloud." },
+    { d: 'cloud', s: 'Cloud models', q: "Which two statements describe a hybrid cloud? (Select two.)", o: ["It combines on-premises resources with public cloud services", "It requires every workload to run in one datacenter", "It lets workloads move between on-premises and the cloud as needs change", "It prohibits any use of public cloud"], a: [0, 2], e: "Hybrid cloud mixes on-premises and public cloud and allows flexibility between them. It does not forbid public cloud, and it does not confine you to one datacenter." },
+    { d: 'cloud', s: 'Serverless', q: "Which statement describes serverless computing?", o: ["You manage the host operating system and patching", "The provider allocates resources on demand and you do not manage servers", "You must buy dedicated hardware", "It can only run on-premises"], a: [1], e: "Serverless still uses servers, but the provider handles provisioning and scaling, and you pay for execution." },
+    { d: 'cloud', s: 'Cloud benefits', q: "Which two are benefits of cloud computing compared with a traditional datacenter? (Select two.)", o: ["Rapid provisioning of resources", "A guarantee of zero downtime", "Paying only for what you consume", "No need for security planning"], a: [0, 2], e: "Fast provisioning and consumption-based pricing are core benefits. No provider can promise zero downtime, and security planning is still required." },
+    { d: 'cloud', s: 'High availability', q: "What is the main goal of a high availability design?", o: ["Keep a service reachable during component failures", "Recover data only after a regional disaster", "Reduce the number of users", "Lower the number of resource groups"], a: [0], e: "High availability limits downtime by removing single points of failure. Disaster recovery is the separate plan for restoring service after a major outage." },
+
+    { d: 'arch', s: 'Regions', q: "Which statement about Azure region pairs is correct?", o: ["Each region is paired with another region, generally in the same geography", "Pairs always sit on different continents", "Both regions in a pair share one datacenter", "Pairs exist only for billing"], a: [0], e: "Region pairs are generally within one geography, which helps with data residency. The platform also sequences planned updates so both regions are not updated at the same time." },
+    { d: 'arch', s: 'Availability zones', q: "At a minimum, how many separate availability zones exist in each Azure region that supports them?", o: ["One", "Two", "Three", "Five"], a: [2], e: "Regions that support availability zones have at least three physically separate zones, each with independent power, cooling and networking." },
+    { d: 'arch', s: 'Resource hierarchy', q: "Which list shows Azure's resource hierarchy from the broadest scope to the narrowest?", o: ["Subscription, management group, resource group, resource", "Management group, subscription, resource group, resource", "Resource group, subscription, management group, resource", "Management group, resource group, subscription, resource"], a: [1], e: "Management groups contain subscriptions, subscriptions contain resource groups, and resource groups contain resources." },
+    { d: 'arch', s: 'Subscriptions', q: "What is an Azure subscription primarily used for?", o: ["Grouping resources by lifecycle", "A unit of billing and access management that holds resource groups", "Storing blobs", "Filtering network traffic"], a: [1], e: "A subscription is a billing and access boundary. Grouping resources by lifecycle is what resource groups do." },
+    { d: 'arch', s: 'Compute', q: "You need to run a short-lived containerized job quickly, without managing virtual machines or an orchestrator. Which service fits best?", o: ["Azure Container Instances", "Azure Kubernetes Service", "Azure Virtual Machines", "Azure Batch"], a: [0], e: "Azure Container Instances runs containers on demand with no VM or orchestrator to manage. Azure Kubernetes Service is for orchestrating many containers." },
+    { d: 'arch', s: 'Compute', q: "Which service hosts web apps and APIs without you managing the underlying servers?", o: ["Azure App Service", "Azure Virtual Network", "Azure Backup", "Azure Bastion"], a: [0], e: "Azure App Service is a platform as a service offering for web apps, APIs and mobile back ends." },
+    { d: 'arch', s: 'Compute', q: "Which service delivers cloud-hosted Windows desktops and apps to remote users?", o: ["Azure Virtual Desktop", "Azure Files", "Azure DNS", "Azure Policy"], a: [0], e: "Azure Virtual Desktop is the desktop and app virtualization service that runs in Azure." },
+    { d: 'arch', s: 'Availability', q: "Which feature protects virtual machines from hardware failures inside one datacenter by spreading them across fault domains and update domains?", o: ["Availability set", "Resource lock", "Azure Policy", "Region pair"], a: [0], e: "An availability set spreads VMs across fault and update domains within a datacenter. Availability zones go further and spread across separate datacenters." },
+    { d: 'arch', s: 'Networking', q: "You want two virtual networks to communicate over the Microsoft backbone using private IP addresses. What should you configure?", o: ["Virtual network peering", "A public IP address", "An Azure DNS zone", "A content delivery network"], a: [0], e: "Virtual network peering connects networks so resources talk over private IPs on the Microsoft backbone, without going over the public internet." },
+    { d: 'arch', s: 'Networking', q: "Which service distributes incoming TCP and UDP traffic across healthy virtual machines at the transport layer?", o: ["Azure Load Balancer", "Azure Application Gateway", "Azure Firewall", "Azure DNS"], a: [0], e: "Azure Load Balancer works at layer 4. Application Gateway works at layer 7 for HTTP and HTTPS traffic." },
+    { d: 'arch', s: 'Networking', q: "Which service can route web traffic by URL path and offers an optional web application firewall?", o: ["Azure Application Gateway", "Azure Load Balancer", "Azure Bastion", "Azure Backup"], a: [0], e: "Application Gateway is a layer 7 load balancer that supports path-based routing and can include a web application firewall." },
+    { d: 'arch', s: 'Networking', q: "Which service provides a private, dedicated connection from on-premises to Azure that does not travel over the public internet?", o: ["ExpressRoute", "VPN Gateway", "Azure CDN", "Traffic Manager"], a: [0], e: "ExpressRoute uses a private connection through a connectivity provider. VPN Gateway encrypts traffic but sends it over the public internet." },
+    { d: 'arch', s: 'Networking', q: "What does Azure Bastion provide?", o: ["Secure RDP and SSH access to VMs through the portal over TLS, without public IP addresses on the VMs", "Encryption of storage accounts", "Cost estimates", "A message queue"], a: [0], e: "Bastion lets you connect to virtual machines from the Azure portal over TLS, so the VMs do not need public IPs exposed to the internet." },
+    { d: 'arch', s: 'Networking', q: "An application inside a virtual network must reach an Azure SQL database using a private IP address. Which feature should you use?", o: ["Private endpoint", "Public IP prefix", "Traffic Manager", "Availability zone"], a: [0], e: "A private endpoint, delivered through Azure Private Link, gives a PaaS service a private IP address inside your virtual network." },
+    { d: 'arch', s: 'Storage', q: "Which storage service holds messages that application components read asynchronously?", o: ["Queue storage", "Blob storage", "Azure Files", "Disk storage"], a: [0], e: "Queue storage stores large numbers of messages so components can process them independently of each other." },
+    { d: 'arch', s: 'Storage', q: "Which storage redundancy option copies data to a secondary region to protect against a regional outage?", o: ["Locally redundant storage", "Zone-redundant storage", "Geo-redundant storage", "All options replicate to another region"], a: [2], e: "Geo-redundant storage replicates to a paired region. Locally and zone-redundant storage keep every copy inside the primary region." },
+    { d: 'arch', s: 'Storage', q: "Which blob access tier is meant for data that is infrequently accessed and kept for at least 30 days?", o: ["Hot", "Cool", "Archive", "Premium"], a: [1], e: "The cool tier lowers storage cost for data you rarely read. Archive is cheaper still but has a long retrieval time, and hot is for frequent access." },
+    { d: 'arch', s: 'Migration', q: "Which service helps you discover, assess and migrate on-premises servers and databases to Azure?", o: ["Azure Migrate", "Azure Monitor", "Azure Advisor", "Azure Arc"], a: [0], e: "Azure Migrate is the central hub for assessing and moving servers, databases and apps to Azure." },
+    { d: 'arch', s: 'Migration', q: "A company must move tens of terabytes of data to Azure but has a slow internet connection. Which option is designed for this?", o: ["Azure Data Box", "Azure Bastion", "Azure DNS", "Azure Policy"], a: [0], e: "Azure Data Box is a physical device that you fill with data and ship to Microsoft for upload." },
+    { d: 'arch', s: 'Migration', q: "Which command-line tool copies blobs and files to and from storage accounts?", o: ["AzCopy", "Azure Bastion", "ExpressRoute", "Azure Advisor"], a: [0], e: "AzCopy is a command-line utility built for fast copying of data to and from Azure Storage." },
+    { d: 'arch', s: 'Databases', q: "Which service is a globally distributed, multi-model NoSQL database with single-digit millisecond response times?", o: ["Azure Cosmos DB", "Azure SQL Database", "Azure Database Migration Service", "Azure Files"], a: [0], e: "Cosmos DB is Azure's globally distributed NoSQL database. Azure SQL Database is a relational service." },
+    { d: 'arch', s: 'Databases', q: "You want to move an on-premises SQL Server database to a managed service with near-full SQL Server feature compatibility and minimal changes. Which option fits best?", o: ["Azure SQL Managed Instance", "Azure Cosmos DB", "Azure Table storage", "Azure Queue storage"], a: [0], e: "SQL Managed Instance is built for lift-and-shift of SQL Server workloads with very high compatibility, while still being a managed service." },
+    { d: 'arch', s: 'Identity', q: "A user signs in once and then accesses several applications without entering credentials again. What is this called?", o: ["Single sign-on", "Resource locking", "Role inheritance", "Network peering"], a: [0], e: "Single sign-on lets one set of credentials reach many applications. Microsoft Entra ID provides it for cloud and on-premises apps." },
+    { d: 'arch', s: 'Identity', q: "Which feature can require multifactor authentication only when users sign in from untrusted locations?", o: ["Conditional Access", "Azure Lighthouse", "Resource tags", "Availability sets"], a: [0], e: "Conditional Access evaluates signals such as location, device and risk, then decides whether to allow, block or require extra verification." },
+    { d: 'arch', s: 'Identity', q: "Which two are passwordless authentication methods? (Select two.)", o: ["FIDO2 security key", "Security questions", "Windows Hello for Business", "A shared account password"], a: [0, 2], e: "FIDO2 security keys and Windows Hello for Business both sign users in without typing a password. Security questions and shared passwords are still password-based." },
+    { d: 'arch', s: 'Access control', q: "A contractor must restart virtual machines in one resource group but nothing else. What is the best approach?", o: ["Assign a suitable role at the resource group scope", "Assign the Owner role at the subscription scope", "Share an administrator password", "Assign a role at the management group scope"], a: [0], e: "Role-based access control works best with least privilege: give only the needed role at the narrowest scope that covers the job." },
+    { d: 'arch', s: 'Zero Trust', q: "Which Zero Trust principle means acting as though an attacker may already be inside the network?", o: ["Assume breach", "Verify explicitly", "Use least privilege access", "Trust internal networks"], a: [0], e: "Zero Trust rests on three principles: verify explicitly, use least privilege access, and assume breach. Trusting internal networks is the opposite of Zero Trust." },
+    { d: 'arch', s: 'Security', q: "Which service provides posture management and threat protection recommendations for workloads in Azure and other environments?", o: ["Microsoft Defender for Cloud", "Azure DNS", "Microsoft Cost Management", "Azure Backup"], a: [0], e: "Microsoft Defender for Cloud assesses your security posture and helps protect workloads across Azure, on-premises and other clouds." },
+    { d: 'arch', s: 'Security', q: "Where should an application keep secrets such as API keys and certificates, instead of placing them in its code?", o: ["Azure Key Vault", "A public blob container", "The application source code", "Azure DNS"], a: [0], e: "Azure Key Vault stores secrets, keys and certificates securely and controls who can read them." },
+    { d: 'arch', s: 'AI services', q: "A developer wants to add prebuilt image analysis and text extraction to an app without training a model. Which fits best?", o: ["Azure AI services, such as Azure AI Vision", "Azure Virtual Desktop", "Azure Data Box", "Azure Bastion"], a: [0], e: "Azure AI services offer prebuilt models behind simple APIs, so you can add vision features without building and training your own." },
+
+    { d: 'mgmt', s: 'Cost factors', q: "Which two factors can affect the cost of an Azure virtual machine? (Select two.)", o: ["The region where it is deployed", "The VM size and operating system", "The colour of the resource group icon", "The number of tags on the VM"], a: [0, 1], e: "Price varies by region, by VM size and by the operating system licence. Tags and icons do not change the bill." },
+    { d: 'mgmt', s: 'Cost tools', q: "Which tool estimates the monthly cost of services you plan to deploy?", o: ["Pricing calculator", "Azure Policy", "Azure Monitor", "Resource locks"], a: [0], e: "The pricing calculator builds an estimate from the services, sizes and regions you choose before you deploy anything." },
+    { d: 'mgmt', s: 'Cost tools', q: "Which service lets you analyze spending, set budgets and receive alerts as costs approach a limit?", o: ["Microsoft Cost Management", "Azure Service Health", "Azure Bastion", "Microsoft Purview"], a: [0], e: "Microsoft Cost Management reports on spending and supports budgets and alerts for spending that is already happening." },
+    { d: 'mgmt', s: 'Tags', q: "Which statement about tags is true?", o: ["Tags on a resource group are not automatically inherited by its resources", "Tags encrypt the resource they are attached to", "A resource can have only one tag", "Tags prevent a resource from being deleted"], a: [0], e: "Tags are name and value metadata used to organise resources and report on cost. By default they are not inherited from the resource group, though a policy can add that behaviour." },
+    { d: 'mgmt', s: 'Cost savings', q: "A company has a steady workload and can commit to one or three years of usage in exchange for a discount. Which option should it consider?", o: ["Azure Reservations", "Azure Spot Virtual Machines", "Resource locks", "Azure Bastion"], a: [0], e: "Reservations trade a one or three year commitment for a lower price on predictable usage." },
+    { d: 'mgmt', s: 'Cost savings', q: "Which offering lets you reuse existing Windows Server licences that have Software Assurance to lower Azure virtual machine costs?", o: ["Azure Hybrid Benefit", "Azure Reservations", "Azure Spot", "Azure Advisor"], a: [0], e: "Azure Hybrid Benefit applies your existing eligible licences to Azure workloads so you pay a reduced rate." },
+    { d: 'mgmt', s: 'Cost savings', q: "Which virtual machine option offers deep discounts for interruptible workloads that can tolerate being evicted?", o: ["Azure Spot Virtual Machines", "Reserved instances", "Dedicated Host", "Availability set"], a: [0], e: "Spot VMs use spare capacity at a steep discount, and Azure can reclaim that capacity when it needs it back." },
+    { d: 'mgmt', s: 'Azure Policy', q: "An organization wants to group several policy definitions together to track one compliance goal. What should it use?", o: ["A policy initiative", "A resource lock", "A management group", "A tag"], a: [0], e: "An initiative bundles related policy definitions so you can assign them and view compliance as one unit." },
+    { d: 'mgmt', s: 'Resource locks', q: "Which resource lock level lets users read and modify a resource but prevents deletion?", o: ["CanNotDelete", "ReadOnly", "Owner", "Contributor"], a: [0], e: "A CanNotDelete lock allows reads and changes but blocks deletion. ReadOnly blocks changes as well." },
+    { d: 'mgmt', s: 'Data governance', q: "Which Microsoft service helps discover, classify and govern data across on-premises, multicloud and SaaS sources?", o: ["Microsoft Purview", "Azure Load Balancer", "Azure Bastion", "Azure DNS"], a: [0], e: "Microsoft Purview provides data governance, with a map of your data estate and tools for classification and compliance." },
+    { d: 'mgmt', s: 'Compliance', q: "Where can you find independent audit reports and compliance documentation for Microsoft cloud services?", o: ["Service Trust Portal", "Azure Advisor", "Azure Cloud Shell", "Pricing calculator"], a: [0], e: "The Service Trust Portal publishes audit reports, certifications and other compliance material for Microsoft services." },
+    { d: 'mgmt', s: 'Management tools', q: "Which tool gives you a browser-based command line, already signed in to your account, with nothing to install locally?", o: ["Azure Cloud Shell", "Azure Storage Explorer", "Azure Bastion", "Azure Data Box"], a: [0], e: "Cloud Shell runs in the browser and offers Azure CLI and PowerShell, authenticated as you." },
+    { d: 'mgmt', s: 'Infrastructure as code', q: "What is a key advantage of deploying with ARM templates or Bicep?", o: ["Repeatable, consistent deployments defined as code", "They are required for every virtual machine", "They replace the Azure portal", "They remove all costs"], a: [0], e: "Infrastructure as code lets you deploy the same environment again and again, which reduces mistakes and drift." },
+    { d: 'mgmt', s: 'Azure Resource Manager', q: "What is Azure Resource Manager?", o: ["The management layer that processes requests from the portal, CLI, PowerShell and SDKs", "A billing report", "A type of virtual network", "A database engine"], a: [0], e: "Every management request, whichever tool you use, goes through Azure Resource Manager, which applies access control and then performs the action." },
+    { d: 'mgmt', s: 'Hybrid management', q: "A company wants to manage servers running on-premises and in another cloud using Azure tools and Azure Policy. Which service should it use?", o: ["Azure Arc", "Azure Data Box", "Azure CDN", "Azure Queue storage"], a: [0], e: "Azure Arc projects servers and other resources outside Azure into the Azure control plane, so you can manage them with the same tools." },
+    { d: 'mgmt', s: 'Azure Advisor', q: "Which two categories does Azure Advisor give recommendations in? (Select two.)", o: ["Reliability", "Social media reach", "Cost", "Office furniture"], a: [0, 2], e: "Advisor reviews your deployed resources and recommends improvements in reliability, security, performance, cost and operational excellence." },
+    { d: 'mgmt', s: 'Service Health', q: "Which service sends personalised alerts about Azure incidents and planned maintenance that affect your resources?", o: ["Azure Service Health", "Azure Policy", "Azure Reservations", "Microsoft Cost Management"], a: [0], e: "Azure Service Health tells you about issues in the services and regions you actually use, including planned maintenance." },
+    { d: 'mgmt', s: 'Azure Monitor', q: "Which part of Azure Monitor lets you query collected log data using Kusto Query Language?", o: ["Log Analytics", "Azure Bastion", "Azure Backup", "Resource Explorer"], a: [0], e: "Log Analytics stores log data in a workspace and lets you query it with Kusto Query Language." },
+    { d: 'mgmt', s: 'Azure Monitor', q: "Which service monitors a web application's performance, failures and availability by collecting telemetry from the app?", o: ["Application Insights", "Azure DNS", "Azure Firewall", "Azure Files"], a: [0], e: "Application Insights is Azure Monitor's application performance monitoring feature for live web apps." },
+    { d: 'mgmt', s: 'Resource groups', q: "What happens to the resources inside a resource group when you delete the group?", o: ["They are deleted as well", "They move to another subscription", "Nothing, they stay in place", "They are archived"], a: [0], e: "Deleting a resource group deletes everything in it, which is why resource groups should hold resources that share a lifecycle." }
+  ];
+
+  var CARDS = [
+    { d: 'cloud', t: 'Elasticity', def: 'Resources scale out and back in automatically to match demand.', an: 'A stretchy waistband that fits before and after a big meal.' },
+    { d: 'cloud', t: 'High availability', def: 'A design that keeps a service running even when a component fails.', an: 'A shop with two cash registers, so one breaking does not close the till.' },
+    { d: 'cloud', t: 'Operational expenditure', def: 'Paying for services as you use them instead of buying assets up front.', an: 'Taking taxis instead of buying a car.' },
+    { d: 'cloud', t: 'Infrastructure as a service', def: 'You rent virtual machines, storage and networking, and you manage the operating system and up.', an: 'Renting an empty kitchen. You bring the cooking.' },
+    { d: 'cloud', t: 'Platform as a service', def: 'A managed platform where the provider runs the operating system and runtime and you deploy code.', an: 'A catered kitchen. You only cook the dish.' },
+    { d: 'cloud', t: 'Software as a service', def: 'A finished application delivered over the internet and managed by the provider.', an: 'Eating at a restaurant.' },
+    { d: 'cloud', t: 'Economies of scale', def: 'Buying in huge volume lets a provider lower the price per unit and pass savings on.', an: 'Wholesale shopping versus buying one item at a corner shop.' },
+    { d: 'cloud', t: 'Hybrid cloud', def: 'A mix of on-premises or private resources and public cloud services that work together.', an: 'Keeping valuables at home and renting a storage unit for the rest.' },
+    { d: 'cloud', t: 'Composite SLA', def: 'When an app needs several services at once, multiply their availabilities. The result is lower than the weakest one.', an: 'A chain of lamps wired in a row. Every bulb has to work.' },
+    { d: 'cloud', t: 'Scale up and scale out', def: 'Scale up makes one machine bigger. Scale out adds more machines.', an: 'Buying a bigger truck versus adding more trucks.' },
+    { d: 'arch', t: 'Region', def: 'A geographic area that contains one or more datacenters.', an: 'A city that has several branches of the same bank.' },
+    { d: 'arch', t: 'Availability zone', def: 'A physically separate datacenter inside a region with independent power, cooling and networking.', an: 'Separate buildings in one city, each with its own generator.' },
+    { d: 'arch', t: 'Subscription', def: 'A boundary for billing and access management that holds resource groups.', an: 'A separate bank account with its own statement.' },
+    { d: 'arch', t: 'Resource group', def: 'A logical container for related resources that you manage together.', an: 'A project folder for everything one job needs.' },
+    { d: 'arch', t: 'Management group', def: 'A container above subscriptions used to apply governance across many of them.', an: 'Head office rules that apply to every branch.' },
+    { d: 'arch', t: 'Azure Functions', def: 'Serverless compute that runs your code when an event triggers it and bills per execution.', an: 'A doorbell that only costs you when someone presses it.' },
+    { d: 'arch', t: 'Azure App Service', def: 'A managed platform for hosting web apps and APIs without running servers yourself.', an: 'A serviced office. You bring the team, they run the building.' },
+    { d: 'arch', t: 'Azure Container Instances', def: 'Runs containers on demand with no virtual machines or orchestrator to manage.', an: 'A pop-up stall you can open for an afternoon.' },
+    { d: 'arch', t: 'Virtual machine scale set', def: 'A group of identical virtual machines that scales in and out automatically.', an: 'Extra cashiers who clock in when the queue grows.' },
+    { d: 'arch', t: 'Virtual network', def: 'A private network in the cloud where your resources can talk to each other securely.', an: 'The local network inside your office.' },
+    { d: 'arch', t: 'Network security group', def: 'A set of allow and deny rules for traffic to subnets and network interfaces.', an: 'A security guard holding a guest list.' },
+    { d: 'arch', t: 'Private endpoint', def: 'Gives a service such as Azure SQL a private IP address inside your virtual network.', an: 'A private side door instead of the public front entrance.' },
+    { d: 'arch', t: 'VPN Gateway', def: 'An encrypted tunnel between an on-premises network and Azure across the public internet.', an: 'An armored van on a public road.' },
+    { d: 'arch', t: 'ExpressRoute', def: 'A private, dedicated connection to Azure that does not use the public internet.', an: 'A private road built just for your trucks.' },
+    { d: 'arch', t: 'Azure Bastion', def: 'Browser-based RDP and SSH to virtual machines over TLS, with no public IPs on the VMs.', an: 'A reception desk that walks visitors to a room so the room never needs a street door.' },
+    { d: 'arch', t: 'Blob storage', def: 'Object storage for large amounts of unstructured data like images, video and backups.', an: 'A huge warehouse where every box carries a label.' },
+    { d: 'arch', t: 'Zone-redundant storage', def: 'Keeps three copies of your data across availability zones in the primary region.', an: 'Spare keys kept in three separate buildings.' },
+    { d: 'arch', t: 'Geo-redundant storage', def: 'Also copies your data to a paired secondary region, protecting against a regional outage.', an: 'A backup copy of the keys stored in another city.' },
+    { d: 'arch', t: 'Azure Cosmos DB', def: 'A globally distributed NoSQL database with very low latency.', an: 'A shop with the same stock list in every country.' },
+    { d: 'arch', t: 'Microsoft Entra ID', def: 'The cloud identity and access service that handles sign-in for users and apps.', an: 'The company badge office.' },
+    { d: 'arch', t: 'Multifactor authentication', def: 'Sign-in that needs two or more proofs of identity.', an: 'A door that wants both a key and a fingerprint.' },
+    { d: 'arch', t: 'Conditional Access', def: 'Rules that decide whether to allow, block or challenge a sign-in based on signals like location and device.', an: 'A bouncer who checks more closely when you arrive at odd hours.' },
+    { d: 'arch', t: 'Role-based access control', def: 'Permissions given through roles assigned to identities at a scope.', an: 'Hotel key cards that only open certain floors.' },
+    { d: 'arch', t: 'Microsoft Defender for Cloud', def: 'Assesses your security posture and gives threat protection across Azure and other environments.', an: 'A security audit that also watches the cameras.' },
+    { d: 'arch', t: 'Azure Key Vault', def: 'Stores secrets, keys and certificates securely and controls who can read them.', an: 'A safe in the back office with a sign-out sheet.' },
+    { d: 'mgmt', t: 'Azure Policy', def: 'Rules that enforce standards on resources and report which ones comply.', an: 'A building inspector checking every new room against the code.' },
+    { d: 'mgmt', t: 'Resource lock', def: 'A setting that prevents accidental deletion or change of a resource.', an: 'A cover over the big red button.' },
+    { d: 'mgmt', t: 'Tags', def: 'Name and value labels on resources for organising and cost reporting. They are not inherited by default.', an: 'Coloured stickers on moving boxes.' },
+    { d: 'mgmt', t: 'Azure Advisor', def: 'A service that reviews your resources and recommends improvements.', an: 'A coach who watches your setup and gives tips.' },
+    { d: 'mgmt', t: 'Azure Monitor', def: 'Collects metrics and logs from resources and raises alerts.', an: 'The dashboard warning lights in a car.' },
+    { d: 'mgmt', t: 'Azure Service Health', def: 'Personalised alerts about Azure incidents and planned maintenance that affect your resources.', an: 'A road traffic bulletin for your own commute.' },
+    { d: 'mgmt', t: 'Pricing calculator', def: 'A tool that estimates the cost of a planned deployment before you build it.', an: 'Adding up your basket before you reach the checkout.' },
+    { d: 'mgmt', t: 'Microsoft Cost Management', def: 'Analyses spending and lets you set budgets and alerts.', an: 'Your bank app showing where the month went.' },
+    { d: 'mgmt', t: 'Azure Reservations', def: 'Commit to one or three years of usage in return for a lower price.', an: 'A gym annual plan versus paying per visit.' },
+    { d: 'mgmt', t: 'Azure Arc', def: 'Brings servers and resources outside Azure under the Azure control plane.', an: 'One remote control for devices in every room, even the neighbours.' },
+    { d: 'mgmt', t: 'Azure Resource Manager', def: 'The management layer every portal, CLI, PowerShell and SDK request passes through.', an: 'The front desk that every request has to go through.' },
+    { d: 'mgmt', t: 'Microsoft Purview', def: 'Data governance across on-premises, multicloud and SaaS, including discovery and classification.', an: 'A librarian cataloguing every book in every building.' }
+  ];
+
+  var TOPIC_AREA = {}, TOPICS = { cloud: [], arch: [], mgmt: [] };
+  QUESTIONS.forEach(function (q) { if (!TOPIC_AREA[q.s]) { TOPIC_AREA[q.s] = q.d; TOPICS[q.d].push(q.s); } });
+
+  var KEY = 'azprepbench.v2';
+  var SECS_PER_Q = 90, PASS = 70;
+  function $(s) { return document.querySelector(s); }
+  function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function dom(id) { for (var i = 0; i < DOMAINS.length; i++) if (DOMAINS[i].id === id) return DOMAINS[i]; return DOMAINS[0]; }
+  function pct(r, t) { return t ? Math.round((r / t) * 100) : null; }
+  function poolCount(id) { return QUESTIONS.filter(function (q) { return q.d === id; }).length; }
+  function mmss(s) { s = Math.max(0, s); var m = Math.floor(s / 60), r = s % 60; return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r; }
+  function fmt(d) { return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }); }
+  function band(p) { return p === null ? '' : p >= PASS ? 'good' : p >= 55 ? 'warn' : 'bad'; }
+
+  function sampleState() {
+    var day = 864e5, now = Date.now();
+    return {
+      sample: true,
+      topics: {
+        'Shared responsibility': { r: 3, t: 4 }, 'Service models': { r: 3, t: 4 }, 'Scalability': { r: 2, t: 4 }, 'SLA': { r: 1, t: 3 }, 'Cloud models': { r: 3, t: 5 },
+        'Networking': { r: 6, t: 12 }, 'Storage': { r: 4, t: 6 }, 'Identity': { r: 3, t: 6 }, 'Compute': { r: 4, t: 5 }, 'Databases': { r: 2, t: 4 }, 'Availability zones': { r: 2, t: 3 },
+        'Cost tools': { r: 3, t: 4 }, 'Cost savings': { r: 3, t: 5 }, 'Tags': { r: 1, t: 2 }, 'Azure Policy': { r: 2, t: 3 }, 'Resource locks': { r: 2, t: 2 }, 'Azure Monitor': { r: 2, t: 4 }
+      },
+      sessions: [
+        { t: now - 20 * day, pct: 50, n: 10, mode: 'practice' }, { t: now - 16 * day, pct: 56, n: 10, mode: 'practice' }, { t: now - 12 * day, pct: 60, n: 10, mode: 'practice' },
+        { t: now - 8 * day, pct: 63, n: 20, mode: 'practice' }, { t: now - 4 * day, pct: 64, n: 20, mode: 'mock' }, { t: now - 1 * day, pct: 67, n: 10, mode: 'practice' }
+      ],
+      known: {},
+      plan: { date: '', hours: 6, weak: null, done: {} }
+    };
+  }
+  function load() {
+    try { var raw = localStorage.getItem(KEY); if (raw) { var o = JSON.parse(raw); if (o && o.topics) return o; } } catch (e) {}
+    return sampleState();
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+  var S = load();
+  var tab = 'quiz';
+  var Qz = { phase: 'setup', mode: 'practice', domain: 'all', n: 10 };
+  var F = { domain: 'all', hideKnown: false, list: null, i: 0, flipped: false };
+  var P = { result: null };
+  var timerId = null;
+
+  function areaStat(id) {
+    var r = 0, t = 0;
+    for (var s in S.topics) { if (TOPIC_AREA[s] === id) { r += S.topics[s].r; t += S.topics[s].t; } }
+    return { r: r, t: t };
+  }
+  function overall() { var r = 0, t = 0; DOMAINS.forEach(function (d) { var s = areaStat(d.id); r += s.r; t += s.t; }); return { r: r, t: t }; }
+  function weakestArea() {
+    var best = null;
+    DOMAINS.forEach(function (d) { var s = areaStat(d.id); if (s.t > 0) { var p = s.r / s.t; if (!best || p < best.p) best = { id: d.id, p: p }; } });
+    return best;
+  }
+  function weakTopics() {
+    var arr = [];
+    for (var s in S.topics) { var v = S.topics[s]; if (v.t >= 1 && v.r / v.t < PASS / 100) arr.push({ s: s, acc: v.r / v.t, t: v.t, r: v.r }); }
+    arr.sort(function (a, b) { return a.acc - b.acc || b.t - a.t; });
+    return arr.slice(0, 6);
+  }
+  function verdict() {
+    var o = overall();
+    if (o.t < 20) return { k: 'warn', txt: 'Keep practicing', note: 'Answer at least 20 questions for a steadier read.' };
+    var p = (o.r / o.t) * 100;
+    var low = DOMAINS.some(function (d) { var s = areaStat(d.id); return s.t >= 3 && (s.r / s.t) * 100 < PASS; });
+    if (p >= 75 && !low) return { k: 'good', txt: 'Looking ready', note: 'Overall is above 75% and no skill area is below 70%.' };
+    if (p >= 60) return { k: 'warn', txt: 'Getting close', note: low ? 'Lift your weakest skill area to 70%.' : 'Aim for 75% overall across all skill areas.' };
+    return { k: 'bad', txt: 'Needs more work', note: 'Focus on the lowest topics first.' };
+  }
+
+  function record(q, ok) {
+    if (S.sample) S = { sample: false, topics: {}, sessions: [], known: S.known || {}, plan: S.plan || { date: '', hours: 6, weak: null, done: {} } };
+    var s = S.topics[q.s] || (S.topics[q.s] = { r: 0, t: 0 });
+    s.t++; if (ok) s.r++;
+    save(); renderStrip();
+  }
+
+  function renderStrip() {
+    var o = overall(), v = verdict(), w = weakestArea();
+    var p = pct(o.r, o.t);
+    $('#strip').innerHTML =
+      '<div><span class="label">Readiness</span><div class="row"><span class="big">' + (p === null ? '--' : p + '%') + '</span><span class="verdict ' + v.k + '">' + v.txt + '</span></div></div>' +
+      '<div><span class="label">Questions answered</span><div class="row"><span class="big">' + o.t + '</span>' + (S.sample ? '<span class="tag">Example data</span>' : '') + '</div></div>' +
+      '<div><span class="label">Weakest skill area</span><div class="row"><span style="font-weight:600">' + (w ? dom(w.id).name : 'None yet') + '</span>' + (w ? '<span class="mono muted">' + Math.round(w.p * 100) + '%</span>' : '') + '</div></div>';
+  }
+
+  /* ---------- Quiz ---------- */
+  function prep(q) { return { d: q.d, s: q.s, q: q.q, o: q.o, a: q.a, e: q.e, order: shuffle(q.o.map(function (_, i) { return i; })) }; }
+  function drawQuestions() {
+    var picked = [];
+    if (Qz.mode === 'mock') {
+      var counts = DOMAINS.map(function (d) { return Math.floor(Qz.n * d.w); });
+      var short = Qz.n - counts.reduce(function (a, b) { return a + b; }, 0);
+      var order = [1, 2, 0];
+      for (var k = 0; short > 0; k++, short--) counts[order[k % 3]]++;
+      DOMAINS.forEach(function (d, i) { picked = picked.concat(shuffle(QUESTIONS.filter(function (q) { return q.d === d.id; })).slice(0, counts[i])); });
+      picked = shuffle(picked);
+    } else {
+      picked = shuffle(QUESTIONS.filter(function (q) { return Qz.domain === 'all' || q.d === Qz.domain; })).slice(0, Qz.n);
+    }
+    return picked.map(prep);
+  }
+  function begin(list, mode) {
+    Qz = { phase: 'run', mode: mode, domain: Qz.domain, n: list.length, list: list, i: 0, sel: [], checked: false, ok: false, right: 0, missed: [], byDom: {}, started: Date.now(), secs: list.length * SECS_PER_Q, timedOut: false };
+    if (mode === 'mock') startTimer();
+  }
+  function startTimer() {
+    stopTimer();
+    timerId = setInterval(function () {
+      var left = Qz.secs - Math.floor((Date.now() - Qz.started) / 1000);
+      var el = $('#timer');
+      if (el) { el.textContent = mmss(left); if (left <= 60) el.classList.add('low'); }
+      if (left <= 0) { finish(true); render(); }
+    }, 1000);
+  }
+  function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
+  function finish(timedOut) {
+    stopTimer();
+    Qz.phase = 'done'; Qz.timedOut = !!timedOut;
+    S.sessions.push({ t: Date.now(), pct: Math.round((Qz.right / Qz.list.length) * 100), n: Qz.list.length, mode: Qz.mode });
+    if (S.sessions.length > 12) S.sessions = S.sessions.slice(-12);
+    save(); renderStrip();
+  }
+  function check() {
+    var q = Qz.list[Qz.i];
+    var chosen = Qz.sel.map(function (k) { return q.order[k]; }).sort().join(',');
+    var ok = chosen === q.a.slice().sort().join(',');
+    Qz.checked = true; Qz.ok = ok;
+    if (ok) Qz.right++; else Qz.missed.push(q);
+    var b = Qz.byDom[q.d] || (Qz.byDom[q.d] = { r: 0, t: 0 });
+    b.t++; if (ok) b.r++;
+    record(q, ok);
+  }
+  function pressOption(k) {
+    if (Qz.checked) return;
+    var q = Qz.list[Qz.i], pick = q.a.length;
+    if (k >= q.o.length) return;
+    if (pick === 1) { Qz.sel = [k]; check(); return; }
+    var at = Qz.sel.indexOf(k);
+    if (at > -1) Qz.sel.splice(at, 1); else if (Qz.sel.length < pick) Qz.sel.push(k);
+  }
+  function advance() {
+    if (Qz.i + 1 >= Qz.list.length) finish(false);
+    else { Qz.i++; Qz.sel = []; Qz.checked = false; }
+  }
+
+  function areasHTML() {
+    var h = '<div class="areas">';
+    DOMAINS.forEach(function (d) {
+      var s = areaStat(d.id), pp = pct(s.r, s.t);
+      h += '<div class="area"><div class="nm"><strong>' + d.name + '</strong><span class="muted" style="font-size:0.82rem">' + d.weight + ' of the exam · ' + poolCount(d.id) + ' questions</span></div>' +
+        '<div class="track" role="img" aria-label="' + d.name + ' accuracy ' + (pp === null ? 'not started' : pp + ' percent') + '"><i class="' + band(pp) + '" style="width:' + (pp === null ? 0 : pp) + '%"></i><span class="mark" style="left:' + PASS + '%"></span></div>' +
+        '<span class="num">' + (pp === null ? 'Not started' : s.r + '/' + s.t + ' · ' + pp + '%') + '</span></div>';
+    });
+    return h + '</div>';
+  }
+  function setupHTML() {
+    var mock = Qz.mode === 'mock';
+    var domOpts = '<option value="all"' + (Qz.domain === 'all' ? ' selected' : '') + '>All skill areas</option>' +
+      DOMAINS.map(function (d) { return '<option value="' + d.id + '"' + (Qz.domain === d.id ? ' selected' : '') + '>' + d.name + '</option>'; }).join('');
+    var maxN = mock || Qz.domain === 'all' ? QUESTIONS.length : poolCount(Qz.domain);
+    var counts = [10, 20, 30, 40].filter(function (n) { return n <= maxN; });
+    if (counts.indexOf(Qz.n) === -1) Qz.n = counts[counts.length - 1];
+    var cOpts = counts.map(function (n) { return '<option value="' + n + '"' + (Qz.n === n ? ' selected' : '') + '>' + n + '</option>'; }).join('');
+    var wt = weakTopics();
+    var h = '<div class="head"><h2>Quiz builder</h2><p class="muted">Practice mode has no clock. Timed mock mode mixes all skill areas in rough exam proportions and allows ' + SECS_PER_Q + ' seconds per question. You get an explanation straight after every answer in both modes.</p></div>' +
+      '<div class="form">' +
+      '<div class="field"><label for="mode">Mode</label><select id="mode"><option value="practice"' + (mock ? '' : ' selected') + '>Practice, no timer</option><option value="mock"' + (mock ? ' selected' : '') + '>Timed mock exam</option></select></div>' +
+      '<div class="field"><label for="domain">Skill area</label><select id="domain"' + (mock ? ' disabled' : '') + '>' + domOpts + '</select></div>' +
+      '<div class="field"><label for="count">Questions</label><select id="count">' + cOpts + '</select></div>' +
+      '<div class="actions"><button class="btn primary" data-act="start">Start quiz</button></div></div>';
+    if (wt.length) {
+      h += '<div class="actions"><button class="btn" data-act="weakquiz">Practice my weakest topics (' + wt.slice(0, 3).map(function (x) { return x.s; }).join(', ') + ')</button></div>';
+    }
+    h += '<div class="head"><h3>Skill areas</h3><p class="muted">The line on each bar marks the ' + PASS + '% practice target.</p></div>' + areasHTML();
+    if (S.sessions.length) {
+      h += '<div class="head"><h3>Recent sessions</h3></div><ul class="sessions">' + S.sessions.slice(-4).reverse().map(function (s) {
+        return '<li><span>' + fmt(new Date(s.t)) + ' · ' + (s.mode === 'mock' ? 'Timed mock' : 'Practice') + ' · ' + s.n + ' questions</span><strong class="mono">' + s.pct + '%</strong></li>';
+      }).join('') + '</ul>';
+    }
+    return h;
+  }
+  function runHTML() {
+    var q = Qz.list[Qz.i], total = Qz.list.length, pick = q.a.length;
+    var left = Qz.secs - Math.floor((Date.now() - Qz.started) / 1000);
+    var h = '<div class="topbar"><div class="chips"><span class="chip">Question ' + (Qz.i + 1) + ' of ' + total + '</span><span class="chip">' + dom(q.d).name + '</span><span class="chip">' + q.s + '</span></div>' +
+      (Qz.mode === 'mock' ? '<span id="timer" class="timer' + (left <= 60 ? ' low' : '') + '" role="timer" aria-label="Time remaining">' + mmss(left) + '</span>' : '') + '</div>' +
+      '<div class="progress"><i style="width:' + Math.round((Qz.i / total) * 100) + '%"></i></div>' +
+      '<h2 class="qtext">' + q.q + '</h2>' + (pick > 1 ? '<p class="hint">Select ' + pick + ' answers</p>' : '') + '<div class="opts">';
+    q.order.forEach(function (oi, k) {
+      var cls = 'opt', dis = '', isCorrect = q.a.indexOf(oi) > -1, isSel = Qz.sel.indexOf(k) > -1;
+      if (Qz.checked) { dis = ' disabled'; cls += isCorrect ? ' good' : isSel ? ' bad' : ' dim'; }
+      else if (isSel) cls += ' sel';
+      h += '<button class="' + cls + '" data-act="opt" data-k="' + k + '"' + dis + ' aria-pressed="' + (isSel ? 'true' : 'false') + '"><span class="k">' + 'ABCD'.charAt(k) + '</span><span>' + q.o[oi] + '</span></button>';
+    });
+    h += '</div>';
+    if (!Qz.checked && pick > 1) h += '<div class="actions"><button class="btn primary" data-act="check"' + (Qz.sel.length === pick ? '' : ' disabled') + '>Check answer</button></div>';
+    if (!Qz.checked) h += '<p class="kbd">Tip: press A to D to choose' + (pick > 1 ? ', then Enter to check' : '') + '.</p>';
+    if (Qz.checked) {
+      h += '<div class="fb ' + (Qz.ok ? 'good' : 'bad') + '" role="status"><strong>' + (Qz.ok ? 'Correct' : 'Not quite') + '</strong><p>' + q.e + '</p></div>' +
+        '<div class="actions"><button class="btn primary" data-act="next">' + (Qz.i + 1 === total ? 'Finish and see results' : 'Next question') + '</button></div><p class="kbd">Press Enter to continue.</p>';
+    }
+    return h;
+  }
+  function doneHTML() {
+    var n = Qz.list.length, p = Math.round((Qz.right / n) * 100);
+    var h = '<div class="head"><h2>' + (Qz.mode === 'mock' ? 'Mock exam results' : 'Quiz results') + '</h2>' + (Qz.timedOut ? '<p class="muted">Time ran out. Unanswered questions count as incorrect.</p>' : '') + '</div>' +
+      '<div class="score"><span class="big">' + Qz.right + ' / ' + n + '</span><span class="verdict ' + (p >= PASS ? 'good' : p >= 55 ? 'warn' : 'bad') + '">' + p + '%</span><span class="muted">' + (p >= PASS ? 'Above' : 'Below') + ' the ' + PASS + '% practice target</span></div><div class="areas">';
+    DOMAINS.forEach(function (d) {
+      var b = Qz.byDom[d.id]; if (!b) return;
+      var pp = pct(b.r, b.t);
+      h += '<div class="area"><div class="nm"><strong>' + d.name + '</strong></div><div class="track"><i class="' + band(pp) + '" style="width:' + pp + '%"></i><span class="mark" style="left:' + PASS + '%"></span></div><span class="num">' + b.r + '/' + b.t + ' · ' + pp + '%</span></div>';
+    });
+    h += '</div>';
+    if (Qz.missed.length) {
+      h += '<div class="head"><h3>Review what you missed</h3></div><ul class="list">';
+      Qz.missed.forEach(function (m) {
+        h += '<li><span class="label">' + dom(m.d).name + ' · ' + m.s + '</span><span>' + m.q + '</span><strong>Answer: ' + m.a.map(function (i) { return m.o[i]; }).join('; ') + '</strong><span class="muted">' + m.e + '</span></li>';
+      });
+      h += '</ul>';
+    } else { h += '<p>No misses this round. Try a longer quiz or a timed mock.</p>'; }
+    return h + '<div class="actions">' + (Qz.missed.length ? '<button class="btn primary" data-act="retry">Retry missed (' + Qz.missed.length + ')</button>' : '') + '<button class="btn" data-act="home">New quiz</button></div>';
+  }
+  function quizHTML() { return Qz.phase === 'setup' ? setupHTML() : Qz.phase === 'run' ? runHTML() : doneHTML(); }
+
+  /* ---------- Flashcards ---------- */
+  function buildDeck() {
+    var idx = [];
+    CARDS.forEach(function (c, i) {
+      if (F.domain !== 'all' && c.d !== F.domain) return;
+      if (F.hideKnown && S.known[i]) return;
+      idx.push(i);
+    });
+    F.list = shuffle(idx); F.i = 0; F.flipped = false;
+  }
+  function knownCount() { var n = 0; CARDS.forEach(function (c, i) { if (S.known[i]) n++; }); return n; }
+  function cardsHTML() {
+    if (!F.list) buildDeck();
+    var opts = '<option value="all"' + (F.domain === 'all' ? ' selected' : '') + '>All skill areas</option>' + DOMAINS.map(function (d) { return '<option value="' + d.id + '"' + (F.domain === d.id ? ' selected' : '') + '>' + d.name + '</option>'; }).join('');
+    var head = '<div class="deckhead"><div class="head"><h2>Flashcard coach</h2><p class="muted">Tap the card to reveal the meaning and a plain-language comparison. Mark each one honestly.</p></div><span class="mono muted">' + knownCount() + ' of ' + CARDS.length + ' known</span></div>' +
+      '<div class="form"><div class="field"><label for="fDomain">Skill area</label><select id="fDomain">' + opts + '</select></div>' +
+      '<div class="field"><label class="check" for="fHide"><input type="checkbox" id="fHide"' + (F.hideKnown ? ' checked' : '') + '> Hide cards I know</label></div>' +
+      '<div class="actions"><button class="btn" data-act="restartDeck">Shuffle deck</button></div></div>';
+    if (!F.list.length) return head + '<p>Every card in this selection is marked known. Turn off the filter or reset your known cards.</p><div class="actions"><button class="btn" data-act="resetKnown">Reset known cards</button></div>';
+    if (F.i >= F.list.length) {
+      var k = 0; F.list.forEach(function (i) { if (S.known[i]) k++; });
+      return head + '<div class="head"><h3>Deck finished</h3><p>You marked ' + k + ' of ' + F.list.length + ' cards as known this round.</p></div><div class="actions"><button class="btn primary" data-act="restartDeck">Go again</button></div>';
+    }
+    var c = CARDS[F.list[F.i]];
+    var body = F.flipped
+      ? '<button class="card back" data-act="flip" aria-label="Hide meaning"><span class="label">' + dom(c.d).name + '</span><span class="term">' + c.t + '</span><span class="def">' + c.def + '</span><span class="an"><strong>Think of it as:</strong> ' + c.an + '</span></button>'
+      : '<button class="card" data-act="flip" aria-label="Reveal meaning"><span class="label">' + dom(c.d).name + '</span><span class="term">' + c.t + '</span><span class="muted">Tap to reveal</span></button>';
+    var foot = '<div class="deckhead"><span class="mono muted">Card ' + (F.i + 1) + ' of ' + F.list.length + '</span>' +
+      (F.flipped ? '<div class="actions"><button class="btn" data-act="again">Still learning</button><button class="btn primary" data-act="gotit">Got it</button></div>' : '') + '</div>';
+    return head + body + foot;
+  }
+
+  /* ---------- Study plan ---------- */
+  function iso(d) { var m = d.getMonth() + 1, day = d.getDate(); return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day; }
+  function startOfDay(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function autoWeak() {
+    return DOMAINS.filter(function (d) { var s = areaStat(d.id); return s.t >= 3 && (s.r / s.t) < 0.65; }).map(function (d) { return d.id; });
+  }
+  function defaultDate() { var d = startOfDay(new Date()); d.setDate(d.getDate() + 28); return iso(d); }
+  function orderedTopics(areaId) {
+    var list = TOPICS[areaId].slice();
+    function acc(s) { var v = S.topics[s]; return v && v.t ? v.r / v.t : 1.01; }
+    return list.sort(function (a, b) { return acc(a) - acc(b); });
+  }
+  function buildPlan(dateStr, hours, weakIds) {
+    var today = startOfDay(new Date());
+    var parts = (dateStr || '').split('-');
+    var exam = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    var days = Math.round((exam - today) / 864e5);
+    if (!dateStr || isNaN(days) || days < 1) return { error: 'Pick an exam date that is at least one day from today.' };
+    var weeks = Math.min(Math.ceil(days / 7), 16);
+    var study = weeks >= 3 ? weeks - 1 : weeks;
+    var weak = DOMAINS.filter(function (d) { return weakIds.indexOf(d.id) > -1; });
+    var rest = DOMAINS.filter(function (d) { return weakIds.indexOf(d.id) === -1; });
+    var ordered = weak.concat(rest);
+    var buckets = []; for (var b = 0; b < study; b++) buckets.push([]);
+    if (study >= ordered.length) {
+      ordered.forEach(function (d, i) { buckets[i].push(d); });
+      var repeat = weak.length ? weak : ordered, k = 0;
+      for (var w = ordered.length; w < study; w++) buckets[w].push(repeat[k++ % repeat.length]);
+    } else { ordered.forEach(function (d, i) { buckets[i % study].push(d); }); }
+    var seen = {}, out = [];
+    for (var i = 0; i < weeks; i++) {
+      var s = new Date(today); s.setDate(s.getDate() + i * 7);
+      var e = new Date(s); e.setDate(e.getDate() + 6); if (e > exam) e = exam;
+      var item = { n: i + 1, from: s, to: e, domains: null };
+      if (i < study) {
+        item.domains = buckets[i].map(function (d) {
+          var rev = !!seen[d.id]; seen[d.id] = true;
+          return { d: d, topics: orderedTopics(d.id), revisit: rev, weak: weakIds.indexOf(d.id) > -1 };
+        });
+      }
+      out.push(item);
+    }
+    return { days: days, weeks: weeks, hours: hours, exam: exam, items: out, total: Math.round(hours * weeks) };
+  }
+  function planHTML() {
+    var date = S.plan.date || defaultDate(), hours = S.plan.hours || 6;
+    var weakIds = Array.isArray(S.plan.weak) ? S.plan.weak : autoWeak();
+    if (!P.result) P.result = buildPlan(date, hours, weakIds);
+    var done = S.plan.done || {};
+    var h = '<div class="head"><h2>Study plan</h2><p class="muted">Set your exam date and weekly hours. Skill areas you tick as weak get the earliest weeks and a repeat visit when time allows, and topics you scored lowest on come first inside each week.</p></div>' +
+      '<div class="form"><div class="field"><label for="examDate">Exam date</label><input type="date" id="examDate" value="' + date + '"></div>' +
+      '<div class="field"><label for="hoursWeek">Hours per week</label><input type="number" id="hoursWeek" min="1" max="40" value="' + hours + '"></div></div>' +
+      '<div class="field"><span style="font-size:0.82rem;font-weight:600">Weak skill areas' + (Array.isArray(S.plan.weak) ? '' : ' (pre-ticked from your scores)') + '</span><div class="weak-grid">';
+    DOMAINS.forEach(function (d) { h += '<label class="check" for="weak-' + d.id + '"><input type="checkbox" id="weak-' + d.id + '" data-weak="' + d.id + '"' + (weakIds.indexOf(d.id) > -1 ? ' checked' : '') + '> ' + d.name + '</label>'; });
+    h += '</div></div><div class="actions"><button class="btn primary" data-act="buildPlan">Build my plan</button></div>';
+    var r = P.result;
+    if (r.error) return h + '<p class="err" role="alert">' + r.error + '</p>';
+    h += '<div class="score"><span class="big">' + r.days + '</span><span class="muted">days to go, ' + r.weeks + ' study weeks, about ' + r.total + ' hours in total</span></div><ol class="weeks">';
+    r.items.forEach(function (w, wi) {
+      var when = '<div class="when"><span class="label">Week ' + w.n + '</span><span class="mono">' + fmt(w.from) + ' to ' + fmt(w.to) + '</span></div>';
+      var tick = '<label class="check" for="done-' + wi + '" style="margin-top:8px"><input type="checkbox" id="done-' + wi + '" data-done="' + wi + '"' + (done[wi] ? ' checked' : '') + '> Mark week done</label>';
+      if (w.domains) {
+        var per = Math.max(0.5, Math.round((r.hours / w.domains.length) * 10) / 10);
+        h += '<li class="week' + (done[wi] ? ' finished' : '') + '">' + when + '<div>';
+        w.domains.forEach(function (x) {
+          var first = x.topics.slice(0, 4).join(', '), more = x.topics.length - 4;
+          h += '<h3>' + x.d.name + (x.revisit ? ' (second pass)' : '') + '</h3><ul>' +
+            '<li>Topics to cover first: ' + first + (more > 0 ? ' and ' + more + ' more' : '') + '.</li>' +
+            '<li>Flashcards for this skill area, about 15 minutes a day.</li>' +
+            '<li>Take the quiz for this area, then retry what you missed.</li>' +
+            '<li>Spend roughly ' + per + ' hours on reading and your own notes.</li></ul>';
+        });
+        h += tick + '</div></li>';
+      } else {
+        h += '<li class="week final' + (done[wi] ? ' finished' : '') + '">' + when + '<div><h3>Timed mock and rest</h3><ul>' +
+          '<li>Sit one timed mock exam, then review every miss with its explanation.</li>' +
+          '<li>Run a second mock if the first is under ' + PASS + '%, and revisit the topics it exposes.</li>' +
+          '<li>Rest the night before. Check the exam time, ID and testing setup.</li></ul>' + tick + '</div></li>';
+      }
+    });
+    return h + '<li class="week final"><div class="when"><span class="label">Exam day</span><span class="mono">' + fmt(r.exam) + '</span></div><div><h3>Sit the exam</h3><p class="muted">Read each question twice and flag anything you want to revisit.</p></div></li></ol>';
+  }
+
+  /* ---------- Readiness ---------- */
+  function checklist() {
+    var o = overall();
+    var lowAreas = DOMAINS.filter(function (d) { var s = areaStat(d.id); return s.t < 5 || (s.r / s.t) * 100 < PASS; });
+    var mocks = S.sessions.filter(function (s) { return s.mode === 'mock'; });
+    var lastMock = mocks.length ? mocks[mocks.length - 1] : null;
+    var kc = knownCount(), kp = Math.round((kc / CARDS.length) * 100);
+    return [
+      { ok: o.t >= 60, label: 'Answer at least 60 questions', detail: o.t + ' answered' },
+      { ok: lowAreas.length === 0, label: 'Reach ' + PASS + '% in every skill area (5 or more answers each)', detail: lowAreas.length ? 'Still to do: ' + lowAreas.map(function (d) { return d.name; }).join(', ') : 'All three areas on target' },
+      { ok: !!lastMock && lastMock.pct >= PASS, label: 'Score ' + PASS + '% or more on a timed mock', detail: lastMock ? 'Latest mock ' + lastMock.pct + '%' : 'No mock taken yet' },
+      { ok: kp >= 80, label: 'Know 80% of the flashcards', detail: kc + ' of ' + CARDS.length + ' known (' + kp + '%)' }
+    ];
+  }
+  function readyHTML() {
+    var v = verdict(), o = overall(), p = pct(o.r, o.t), wt = weakTopics();
+    var h = '<div class="head"><h2>Readiness tracker</h2><p class="muted">Built from every quiz question you answer here. The line on each bar marks the ' + PASS + '% practice target.</p></div>' +
+      (S.sample ? '<p class="notice">These are example scores. They are replaced when you answer your first question.</p>' : '') +
+      '<div class="score"><span class="big">' + (p === null ? '--' : p + '%') + '</span><span class="verdict ' + v.k + '">' + v.txt + '</span><span class="muted">' + v.note + '</span></div>' + areasHTML();
+    h += '<div class="head"><h3>Topics to revisit</h3></div>';
+    if (wt.length) {
+      h += '<ul class="revisit">' + wt.map(function (x) { return '<li><span><strong>' + x.s + '</strong> <span class="muted">· ' + dom(TOPIC_AREA[x.s]).name + '</span></span><span class="num">' + x.r + '/' + x.t + ' · ' + Math.round(x.acc * 100) + '%</span></li>'; }).join('') + '</ul>';
+    } else { h += '<div class="empty">No topic is below ' + PASS + '% yet. Answer more questions and weak spots will appear here.</div>'; }
+    h += '<div class="head"><h3>Before you book the exam</h3></div><ul class="checks">' + checklist().map(function (c) {
+      return '<li><span><strong>' + c.label + '</strong><br><span class="muted" style="font-size:0.85rem">' + c.detail + '</span></span><span class="verdict ' + (c.ok ? 'good' : 'warn') + '">' + (c.ok ? 'Done' : 'Not yet') + '</span></li>';
+    }).join('') + '</ul>';
+    if (S.sessions.length) {
+      var rec = S.sessions.slice(-8);
+      h += '<div class="head"><h3>Recent scores</h3><p class="muted">Dark bars are timed mocks.</p></div><div class="hist">' + rec.map(function (s) { return '<div><span>' + s.pct + '%</span><i class="' + (s.mode === 'mock' ? 'm' : '') + '" style="height:' + Math.max(4, s.pct * 0.85) + 'px"></i></div>'; }).join('') + '</div>' +
+        '<div class="histlabels">' + rec.map(function (s) { return '<span>' + fmt(new Date(s.t)) + '</span>'; }).join('') + '</div>';
+    }
+    h += '<div class="actions">' + (wt.length ? '<button class="btn primary" data-act="weakquiz">Quiz me on my weakest topics</button>' : '<button class="btn primary" data-act="goQuiz">Take a quiz</button>') + '<button class="btn" data-act="resetAll">Clear my progress</button></div>';
+    return h;
+  }
+
+  function render() {
+    document.querySelectorAll('.tab').forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === tab ? 'true' : 'false'); });
+    $('#panel').innerHTML = tab === 'quiz' ? quizHTML() : tab === 'cards' ? cardsHTML() : tab === 'plan' ? planHTML() : readyHTML();
+  }
+
+  document.addEventListener('click', function (ev) {
+    var t = ev.target.closest('[data-tab],[data-act]');
+    if (!t) return;
+    var tb = t.getAttribute('data-tab');
+    if (tb) { tab = tb; if (tb === 'plan') P.result = null; render(); return; }
+    var a = t.getAttribute('data-act');
+    if (a === 'start') { begin(drawQuestions(), Qz.mode); }
+    else if (a === 'weakquiz') {
+      var set = weakTopics().map(function (x) { return x.s; });
+      var pool = shuffle(QUESTIONS.filter(function (q) { return set.indexOf(q.s) > -1; })).slice(0, 10).map(prep);
+      if (pool.length) { tab = 'quiz'; begin(pool, 'practice'); }
+    }
+    else if (a === 'opt') { pressOption(+t.getAttribute('data-k')); }
+    else if (a === 'check') { check(); }
+    else if (a === 'next') { advance(); }
+    else if (a === 'retry') { var m = Qz.missed.map(prep); begin(m, 'practice'); }
+    else if (a === 'home') { stopTimer(); Qz = { phase: 'setup', mode: Qz.mode, domain: Qz.domain, n: Qz.n }; }
+    else if (a === 'flip') { F.flipped = !F.flipped; }
+    else if (a === 'gotit') { S.known[F.list[F.i]] = true; save(); F.i++; F.flipped = false; renderStrip(); }
+    else if (a === 'again') { S.known[F.list[F.i]] = false; save(); F.i++; F.flipped = false; }
+    else if (a === 'restartDeck') { buildDeck(); }
+    else if (a === 'resetKnown') { S.known = {}; save(); buildDeck(); }
+    else if (a === 'buildPlan') {
+      var date = $('#examDate').value, hrs = Math.max(1, Math.min(40, +$('#hoursWeek').value || 6)), weak = [];
+      document.querySelectorAll('[data-weak]').forEach(function (c) { if (c.checked) weak.push(c.getAttribute('data-weak')); });
+      S.plan = { date: date, hours: hrs, weak: weak, done: {} }; save();
+      P.result = buildPlan(date, hrs, weak);
+    }
+    else if (a === 'goQuiz') { tab = 'quiz'; }
+    else if (a === 'resetAll') { S = { sample: false, topics: {}, sessions: [], known: S.known || {}, plan: S.plan || { date: '', hours: 6, weak: null, done: {} } }; save(); renderStrip(); }
+    render();
+  });
+  document.addEventListener('change', function (ev) {
+    var id = ev.target.id;
+    if (id === 'mode') { Qz.mode = ev.target.value; if (Qz.mode === 'mock') Qz.domain = 'all'; render(); }
+    else if (id === 'domain') { Qz.domain = ev.target.value; render(); }
+    else if (id === 'count') { Qz.n = +ev.target.value; }
+    else if (id === 'fDomain') { F.domain = ev.target.value; buildDeck(); render(); }
+    else if (id === 'fHide') { F.hideKnown = ev.target.checked; buildDeck(); render(); }
+    else if (ev.target.getAttribute && ev.target.getAttribute('data-done') !== null) {
+      S.plan.done = S.plan.done || {};
+      S.plan.done[ev.target.getAttribute('data-done')] = ev.target.checked; save(); render();
+    }
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (tab !== 'quiz' || Qz.phase !== 'run') return;
+    var el = document.activeElement, tag = el ? el.tagName : '';
+    if (tag === 'SELECT' || tag === 'INPUT') return;
+    var key = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
+    var idx = 'abcd'.indexOf(key);
+    if (idx > -1 && !Qz.checked) { pressOption(idx); render(); }
+    else if (key === 'Enter' && tag !== 'BUTTON') {
+      if (Qz.checked) { advance(); render(); }
+      else if (Qz.list[Qz.i].a.length > 1 && Qz.sel.length === Qz.list[Qz.i].a.length) { check(); render(); }
+    }
+  });
+
+  renderStrip();
+  render();
+})();
+</script>
+</body>
+</html>
